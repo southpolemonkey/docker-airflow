@@ -43,7 +43,11 @@ wait_for_port() {
 }
 
 # Other executors than SequentialExecutor drive the need for an SQL database, here PostgreSQL is used
+# Set up executor and backend metadata db connection
+
 if [ "$AIRFLOW__CORE__EXECUTOR" != "SequentialExecutor" ]; then
+  sed -i "s/EXECUTOR_PLACEHOLDER/$AIRFLOW__CORE__EXECUTOR/g" $AIRFLOW_HOME/airflow.cfg
+
   # Check if the user has provided explicit Airflow configuration concerning the database
   if [ -z "$AIRFLOW__CORE__SQL_ALCHEMY_CONN" ]; then
     # Default values corresponding to the default compose files
@@ -56,6 +60,8 @@ if [ "$AIRFLOW__CORE__EXECUTOR" != "SequentialExecutor" ]; then
 
     AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}${POSTGRES_EXTRAS}"
     export AIRFLOW__CORE__SQL_ALCHEMY_CONN
+
+    sed -i "s#SQL_ALCHEMY_PLACEHOLDER#$AIRFLOW__CORE__SQL_ALCHEMY_CONN#g" $AIRFLOW_HOME/airflow.cfg
 
     # Check if the user has provided explicit Airflow configuration for the broker's connection to the database
     if [ "$AIRFLOW__CORE__EXECUTOR" = "CeleryExecutor" ]; then
@@ -111,7 +117,6 @@ case "$1" in
   webserver)
     airflow initdb
     if [ "$AIRFLOW__CORE__EXECUTOR" = "LocalExecutor" ] || [ "$AIRFLOW__CORE__EXECUTOR" = "SequentialExecutor" ]; then
-      # With the "Local" and "Sequential" executors it should all run in one container.
       airflow scheduler &
     fi
     exec airflow webserver
